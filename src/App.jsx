@@ -1,4 +1,18 @@
 import { useState, useEffect } from "react";
+import {
+  Bar
+} from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from "chart.js";
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
@@ -12,7 +26,6 @@ export default function App() {
   useEffect(() => {
     const savedTasks = localStorage.getItem("tasks");
     const savedExpenses = localStorage.getItem("expenses");
-
     if (savedTasks) setTasks(JSON.parse(savedTasks));
     if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
   }, []);
@@ -29,6 +42,7 @@ export default function App() {
   const addTask = () => {
     if (taskText.trim() === "") return;
     setTasks([...tasks, { text: taskText, done: false }]);
+    notifyTask(taskText); // Notify immediately
     setTaskText("");
   };
 
@@ -53,6 +67,35 @@ export default function App() {
   };
 
   const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  // Prepare chart data
+  const categories = {};
+  expenses.forEach(e => {
+    if (categories[e.category]) categories[e.category] += e.amount;
+    else categories[e.category] = e.amount;
+  });
+
+  const data = {
+    labels: Object.keys(categories),
+    datasets: [
+      {
+        label: "Expenses by Category",
+        data: Object.values(categories),
+        backgroundColor: "rgba(37, 99, 235, 0.7)",
+      },
+    ],
+  };
+
+  // Notification function
+  const notifyTask = (task) => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          new Notification(`Reminder: ${task}`);
+        }
+      });
+    }
+  };
 
   return (
     <div style={{ fontFamily: "Arial", padding: "20px" }}>
@@ -110,6 +153,12 @@ export default function App() {
 
       <p>Total Expense: ₹{totalExpense}</p>
       <p>Total Entries: {expenses.length}</p>
+
+      {expenses.length > 0 && (
+        <div style={{ maxWidth: "500px", marginTop: "20px" }}>
+          <Bar data={data} />
+        </div>
+      )}
     </div>
   );
 }
